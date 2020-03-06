@@ -81,16 +81,16 @@
         -->
 
         <sensitive-data-filter applies-to="jmx-mbeans"
-                               match-type="CONTAINS"
+                               match-type="REGEX"
                                match-pattern="username"/>
 
         <sensitive-data-filter applies-to="environment-variables,system-properties,jmx-mbeans"
-                               match-type="CONTAINS"
-                               match-pattern="password"/>
+                               match-type="REGEX"
+                               match-pattern=".*"/>
 
         <sensitive-data-filter applies-to="environment-variables,system-properties"
                                match-type="REGEX"
-                               match-pattern=".*"/>
+                               match-pattern="key"/>
 
     </sensitive-data-filters>
 
@@ -147,9 +147,11 @@
                 <!--  the following packages are not processed by the BCI engine by default
                 1.java.* 2.sun.*  3.com.sun.* [except com.sun.jersey.*] 4.javax.* To add more packages to be excluded add a new custom-exclude tag.-->
                 <bci-processing-excludes>
-                    <override-system-exclude filter-type="equals" filter-value="foo"/>
+                    <!-- override-system-exclude is used to whitelist classes (e.g. 'com.sun.jersey') for instrumentation despite a blacklist ('com.sun.*') -->
+                    <!-- override-system-exclude filter-type="equals" filter-value="foo"/-->
                     <custom-exclude filter-type="CONTAINS" filter-value="$JaxbAccessor"/>
                     <custom-exclude filter-type="CONTAINS" filter-value="$$FastClassByCGLIB"/>
+                    <custom-exclude filter-type="CONTAINS" filter-value="$$EnhancerByGuice$$"/>
                     <custom-exclude filter-type="STARTSWITH" filter-value="$Proxy"/>
                     <custom-exclude filter-type="STARTSWITH" filter-value="org/mozilla/javascript/gen/"/>
                     <custom-exclude filter-type="STARTSWITH" filter-value="atg/dms/"/>
@@ -159,8 +161,20 @@
                     <custom-exclude filter-type="EQUALS" filter-value="io/netty/util/concurrent/DefaultThreadFactory$DefaultRunnableDecorator"/>
                     <custom-exclude filter-type="STARTSWITH" filter-value="io/netty/util/concurrent/SingleThreadEventExecutor"/>
                     <custom-exclude filter-type="STARTSWITH" filter-value="io/reactivex/netty/client/ConnectionPoolImpl"/>
+
+                    <!-- Exclude instrumentation of these spring jdbc datasource classes which are essentially delegates -->
+                    <custom-exclude filter-type="EQUALS" filter-value="org.springframework.jdbc.datasource.IsolationLevelDataSourceAdapter"/>
+                    <custom-exclude filter-type="EQUALS" filter-value="org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy"/>
+                    <custom-exclude filter-type="EQUALS" filter-value="org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy"/>
+                    <custom-exclude filter-type="EQUALS" filter-value="org.springframework.jdbc.datasource.UserCredentialsDataSourceAdapter"/>
+                    <custom-exclude filter-type="EQUALS" filter-value="org.springframework.jdbc.datasource.WebSphereDataSourceAdapter"/>
+                    <!-- Nashorn excludes-->
+                    <custom-exclude filter-type="STARTSWITH" filter-value="jdk/nashorn/internal/scripts"/>
                     <!--- to disable lambda classes instrumentation, use the following line
                         <custom-exclude filter-type="CONTAINS" filter-value="$$Lambda$"/>
+                    -->
+                    <!--- to disable Unsafe instrumentation for JDK 9+, use the following line
+                        <custom-exclude filter-type="EQUALS" filter-value="jdk.internal.misc.Unsafe"/>
                     -->
                 </bci-processing-excludes>
 
@@ -381,6 +395,12 @@
                         <action type="execution" token="this"/>
                         <name-config operation="" type="4"/>
                     </job> 
+                    <job>
+                        <match-class type="matches-class"><name filter-type="EQUALS" filter-value="java.util.concurrent.ForkJoinTask"/></match-class>
+                        <match-method><name filter-type="EQUALS" filter-value="doExec"/></match-method>
+                        <action type="execution" token="this"/>
+                        <name-config operation="" type="4"/>
+                    </job> 
                     <!-- Suppression jobs -->
                     <job>
                         <match-class type="matches-class"><name filter-type="EQUALS" filter-value="java.util.Timer"/></match-class>
@@ -435,6 +455,11 @@
                     <job>
                         <match-class type="matches-class"><name filter-type="EQUALS" filter-value="io.netty.util.concurrent.SingleThreadEventExecutor"/></match-class>
                         <match-method><name filter-type="EQUALS" filter-value="doStartThread"/></match-method>
+                        <action type="suppression"/>
+                    </job> 
+                    <job>
+                        <match-class type="matches-class"><name filter-type="EQUALS" filter-value="akka.stream.impl.ReactiveStreamsCompliance$"/></match-class>
+                        <match-method><name filter-type="EQUALS" filter-value="tryOnSubscribe"/></match-method>
                         <action type="suppression"/>
                     </job> 
                 </async-config>
@@ -539,6 +564,9 @@
                     <excludes filter-type="STARTSWITH" filter-value="javassist/"/>
                     <excludes filter-type="STARTSWITH" filter-value="com.fasterxml/"/>
                     <excludes filter-type="STARTSWITH" filter-value="com.hazelcast/"/>
+
+                    <!-- Exclude this for micronaut as it causes issues with correlation (i.e. 2nd BT picks up handoff from 1st BT -->
+                    <excludes filter-type="STARTSWITH" filter-value="io.micronaut.http.context.ServerRequestContext"/>
 
                     <!-- IBM Websphere BPM (JAVA-2288) -->
                     <include filter-type="STARTSWITH" filter-value="com.ibm.bpe"/>
@@ -704,7 +732,7 @@
 
         <!-- Make sure this is the last service all the time in the config file -->
         <agent-service name="AgentProxyService" enabled="false">
-            <service-dependencies>TransactionMonitoringService</service-dependencies>
+            <service-dependencies>TransactionMonitoringService,ObjectMonitoringService</service-dependencies>
             <configuration-properties>
                 <property name="first-port" value="5555"/>
                 <property name="async-req-thread-count" value="5"/>
