@@ -85,8 +85,7 @@ module JavaBuildpack
 
       def node_name(java_opts, credentials)
         name = credentials['node-name'] || @configuration['default_node_name']
-        appd_name = name.to_s.gsub!(/-NEW/, "") 
-        java_opts.add_system_property('appdynamics.agent.nodeName', appd_name)
+        java_opts.add_system_property('appdynamics.agent.nodeName', name.to_s)
       end
 
       def port(java_opts, credentials)
@@ -102,7 +101,8 @@ module JavaBuildpack
       def tier_name(java_opts, credentials)
         name = credentials['tier-name'] || @configuration['default_tier_name'] ||
           @application.details['application_name']
-        java_opts.add_system_property('appdynamics.agent.tierName', name.to_s)
+        appd_name = name.to_s.gsub!(/-NEW/, "") 
+        java_opts.add_system_property('appdynamics.agent.tierName', appd_name)
       end
 
     end
