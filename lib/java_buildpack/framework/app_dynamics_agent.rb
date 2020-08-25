@@ -63,7 +63,7 @@ module JavaBuildpack
       def application_name(java_opts, credentials)
         name = credentials['application-name'] || @configuration['default_application_name'] ||
           @application.details['application_name']
-        puts "HelloAppName, #{name.to_s}!"
+        puts "(#{(name).to_s})".green.italic
         java_opts.add_system_property('appdynamics.agent.applicationName', name.to_s)
       end
 
