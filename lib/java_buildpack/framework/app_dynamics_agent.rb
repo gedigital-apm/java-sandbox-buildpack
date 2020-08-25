@@ -86,7 +86,7 @@ module JavaBuildpack
 
       def node_name(java_opts, credentials)
         name = credentials['node-name'] || @configuration['default_node_name']
-        puts "HelloNodeName, #{name.to_s}!"
+        # puts "HelloNodeName, #{name.to_s}!"
         java_opts.add_system_property('appdynamics.agent.nodeName', name.to_s)
       end
 
