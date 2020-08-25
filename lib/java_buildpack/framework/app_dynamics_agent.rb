@@ -85,7 +85,8 @@ module JavaBuildpack
 
       def node_name(java_opts, credentials)
         name = credentials['node-name'] || @configuration['default_node_name']
-        puts "appdynamics node name for viewproxy #{name.to_s}"
+        appd_name = name.to_s
+        puts "appdynamics node name for viewproxy #{appd_name}"
         java_opts.add_system_property('appdynamics.agent.nodeName', name.to_s)
       end
 
